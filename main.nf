@@ -26,6 +26,7 @@ include { SNIPPY; SNIPPY_CORE   } from './modules/snippy'
 include { RGI_LOAD; RGI_MAIN    } from './modules/rgi'
 include { QUAST                 } from './modules/quast'
 include { KAPTIVE               } from './modules/kaptive'
+include { FETCH_REFERENCE       } from './modules/fetch_reference'
 include { QC_SUMMARY; MULTIQC   } from './modules/summary'
 
 // ── Kaptive: the only species-restricted step ────────────────────────────────
@@ -40,6 +41,49 @@ def kaptive_dbs_for(String organism) {
     if (s == 'acinetobacter baumannii') return ['ab_k', 'ab_o']
     if (KPSC.any { s == it || s.startsWith(it + ' ') }) return ['kpsc_k', 'kpsc_o']
     return []
+}
+
+// ── Curated reference genomes (assets/reference_genomes.tsv) ─────────────────
+
+def load_reference_table(String path) {
+    def f = file(path)
+    if (!f.exists()) error "ERROR: --reference_list not found: ${path}"
+    f.readLines().drop(1).findAll { it.trim() && !it.startsWith('#') }.collect { line ->
+        def c = line.split('\t', -1)
+        [ key: c[0], species: c[1],
+          synonyms: (c[2] == '-' ? [] : c[2].tokenize(';')*.trim()),
+          strain: c[3], assembly: c[4], is_default: c[5] == 'yes',
+          who: c[6], note: c[7] ]
+    }
+}
+
+REF_TABLE = load_reference_table(params.reference_list.toString())
+
+// Default reference for a species name (Bracken name or synonym), or null
+def reference_for_species(String organism) {
+    def s = (organism ?: '').toLowerCase().trim()
+    def hits = REF_TABLE.findAll { r -> r.species.toLowerCase() == s || r.synonyms*.toLowerCase().contains(s) }
+    hits.find { it.is_default } ?: (hits ? hits[0] : null)
+}
+
+// none | file | key | auto
+def reference_mode() {
+    if (!params.reference)                          return 'none'
+    if (params.reference == 'auto')                 return 'auto'
+    if (REF_TABLE.any { it.key == params.reference }) return 'key'
+    return 'file'
+}
+
+def print_reference_table() {
+    def w = { s, n -> s.toString().padRight(n) }
+    def out = new StringBuilder("\nCurated reference genomes (${params.reference_list})\n")
+    out << w('key', 17) << w('species', 30) << w('strain', 26) << w('assembly', 18) << w('default', 8) << 'WHO 2024\n'
+    out << ('-' * 108) << '\n'
+    REF_TABLE.each { r ->
+        out << w(r.key, 17) << w(r.species, 30) << w(r.strain, 26) << w(r.assembly, 18) << w(r.is_default ? 'yes' : '', 8) << r.who << '\n'
+    }
+    out << '\nUse: --reference <key>  |  --reference auto  |  --reference /path/genome.fasta\n'
+    log.info out.toString()
 }
 
 // ── Parameter validation ──────────────────────────────────────────────────────
@@ -62,10 +106,11 @@ def validate_params() {
         def bad = params.kaptive.toString().tokenize(',')*.trim().findAll { !(it in KAPTIVE_DBS) }
         if (bad) error "ERROR: --kaptive must be 'auto', 'off' or a comma-separated list of ${KAPTIVE_DBS.join(', ')} (got: ${bad.join(', ')})"
     }
+    if (reference_mode() == 'file' && !file(params.reference).exists())
+        error "ERROR: --reference '${params.reference}' is neither a file nor a key in ${params.reference_list} (see --list_references)"
     if (workflow.stubRun) return
     check_path('kraken_db',  params.kraken_db,  'dir')
     check_path('phix',       params.phix,       'file')
-    check_path('reference',  params.reference,  'file')
     check_path('card_json',  params.card_json,  'file')
     check_path('prokka_proteins', params.prokka_proteins, 'file')
 }
@@ -73,6 +118,10 @@ def validate_params() {
 // ── Workflow ─────────────────────────────────────────────────────────────────
 
 workflow {
+    if (params.list_references) {
+        print_reference_table()
+        return
+    }
     validate_params()
 
     log.info """
@@ -86,7 +135,10 @@ workflow {
     Species gate    : ${params.skip_species_check ? 'off' : "${params.target_species ?: 'any species (purity only)'} ≥ ${params.min_species_fraction}"}
     Species label   : ${params.reads && !params.skip_species_check ? 'per sample from Bracken' : (params.species ?: 'unknown (set --species)')}
     Contig gate     : ≤ ${params.max_contigs} contigs
-    Reference       : ${params.reference ?: 'none (FastANI and Snippy skipped)'}
+    Reference       : ${ ['none': 'none (FastANI and Snippy skipped; see 05_qc_gates/reference_suggestion.tsv)',
+                          'auto': 'auto (curated reference of the most frequent species)',
+                          'key' : "${params.reference} (curated)",
+                          'file': params.reference][reference_mode()] }
     CARD JSON       : ${params.card_json ?: 'none (RGI skipped)'}
     Pangenome       : ${params.skip_pangenome ? 'off' : 'Roary'}
     Kaptive         : ${params.kaptive == 'auto' ? 'auto (A. baumannii / K. pneumoniae SC samples only)' : params.kaptive}
@@ -95,7 +147,6 @@ workflow {
     """.stripIndent()
 
     no_file    = file("${projectDir}/assets/NO_FILE")
-    ch_ref     = params.reference ? Channel.value(file(params.reference)) : null
     ch_qc_rows = Channel.empty()
     ch_sp_rows = Channel.empty()
     ch_mqc     = Channel.empty()
@@ -175,12 +226,64 @@ workflow {
         ch_species = ch_contigs.map { id, contigs -> tuple(id, params.species ?: 'unknown') }
     ch_pass_sp = ch_pass.join(ch_species)          // (id, contigs, organism)
 
+    // Reference suggestion: most frequent species → curated reference
+    ch_pass_sp.map { it[2] }.toList()
+        .map { orgs ->
+            def lines = ["species\tn_genomes\tsuggested_key\tstrain\tassembly\tnote"]
+            orgs.countBy { it }.sort { -it.value }.each { sp, n ->
+                def r = sp == 'unknown' ? null : reference_for_species(sp)
+                def note = r ? "use --reference ${r.key} (or auto)" :
+                           (sp == 'unknown' ? 'species unknown: set --species' : 'no curated reference: supply --reference genome.fasta')
+                lines << [sp, n, r?.key ?: '-', r?.strain ?: '-', r?.assembly ?: '-', note].join('\t')
+                if (r) log.info "Reference suggestion: ${n} × ${sp} → ${r.key} (${r.strain}, ${r.assembly})"
+            }
+            lines.join('\n') + '\n'
+        }
+        .collectFile(name: 'reference_suggestion.tsv', storeDir: "${params.outdir}/05_qc_gates")
+
+    // Resolve the reference → value channel (label, species|null, fasta)
+    def ref_mode = reference_mode()
+    ch_refsel = null
+    ch_refsel_q = null
+    if (ref_mode == 'file') {
+        ch_refsel = Channel.value(tuple('user', null, file(params.reference)))
+    } else if (ref_mode in ['key', 'auto']) {
+        if (ref_mode == 'key') {
+            def r = REF_TABLE.find { it.key == params.reference }
+            ch_refrow = Channel.of(tuple(r.key, r.species, r.strain, r.assembly))
+        } else {
+            // flatMap → queue channel that simply closes empty when no reference applies
+            ch_refrow = ch_pass_sp.map { it[2] }.filter { it && it != 'unknown' }.toList()
+                .flatMap { orgs ->
+                    if (!orgs) { log.warn "Reference auto: no species label available (use --species) — FastANI/Snippy skipped"; return [] }
+                    def top = orgs.countBy { it }.max { it.value }.key
+                    def r   = reference_for_species(top)
+                    if (!r) { log.warn "Reference auto: no curated reference for '${top}' — supply --reference genome.fasta; FastANI/Snippy skipped"; return [] }
+                    if (orgs.unique(false).size() > 1)
+                        log.warn "Reference auto: mixed species ${orgs.countBy { it }}; using ${r.key} for '${top}' — Snippy runs on '${top}' samples only"
+                    [ tuple(r.key, r.species, r.strain, r.assembly) ]
+                }
+        }
+        FETCH_REFERENCE(ch_refrow)
+        ch_refsel_q = FETCH_REFERENCE.out.fasta          // queue: 0 or 1 item
+        ch_refsel   = ch_refsel_q.first()
+    }
+
     QC_SUMMARY(ch_sp_rows.collect().ifEmpty([no_file]), ch_qc_rows.collect())
 
     // 7. Per-genome analyses
+    ch_ref = ch_refsel ? ch_refsel.map { it[2] } : null
     if (ch_ref) {
         FASTANI(ch_pass, ch_ref)
-        SNIPPY(ch_pass, ch_ref)
+        // Core SNPs only within the reference species (unknown labels are kept)
+        ch_snippy_in = ch_pass_sp.combine(ch_refsel)
+            .filter { id, contigs, org, label, rsp, fasta ->
+                def ok = !rsp || org == 'unknown' || org.equalsIgnoreCase(rsp)
+                if (!ok) log.info "Snippy: ${id} ('${org}') excluded — reference is ${rsp}"
+                ok
+            }
+            .map { id, contigs, org, label, rsp, fasta -> tuple(id, contigs) }
+        SNIPPY(ch_snippy_in, ch_ref)
         SNIPPY.out.dir.collect()
             .filter { it.size() >= 2 }
             .set { ch_snippy_dirs }
@@ -222,7 +325,9 @@ workflow {
     }
 
     // 9. Reports
-    QUAST(ch_pass.map { it[1] }.collect(), params.reference ? file(params.reference) : no_file)
+    ch_quast_ref = ch_refsel_q ? ch_refsel_q.map { it[2] }.concat(Channel.of(no_file)).first()
+                 : (ch_ref ?: Channel.value(no_file))
+    QUAST(ch_pass.map { it[1] }.collect(), ch_quast_ref)
     ch_mqc = ch_mqc.mix(QUAST.out.results)
     MULTIQC(ch_mqc.collect())
 }
