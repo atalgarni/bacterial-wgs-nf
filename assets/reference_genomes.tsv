@@ -4,9 +4,13 @@ ABAU_AB5075	Acinetobacter baumannii	-	AB5075-UW	GCF_000963815.1	no	critical	Glob
 KPNE_HS11286	Klebsiella pneumoniae	-	HS11286	GCF_000240185.1	yes	critical	ST11 KPC-2 carbapenem-resistant clone; NCBI RefSeq reference genome
 KPNE_NTUHK2044	Klebsiella pneumoniae	-	NTUH-K2044	GCF_000009885.1	no	critical	Hypervirulent K1 ST23 liver-abscess strain
 ECOL_MG1655	Escherichia coli	-	K-12 substr. MG1655	GCF_000005845.2	yes	critical	Canonical E. coli reference (non-pathogenic; use for core-SNP coordinates)
-ECLO_ATCC13047	Enterobacter cloacae	Enterobacter hormaechei	ATCC 13047	GCF_000025565.1	yes	critical	Type strain of E. cloacae; complex members are frequent carbapenemase carriers
+ECOL_EC958	Escherichia coli	-	EC958 (O25b:H4-ST131)	GCF_000285655.3	no	critical	ST131 pandemic ESBL (CTX-M-15) clone; use for 3GC-resistant E. coli lineage work
+ECLO_ATCC13047	Enterobacter cloacae	-	ATCC 13047	GCF_000025565.1	yes	critical	Type strain of E. cloacae sensu stricto (not E. hormaechei: different species, ~88% ANI)
+EHOR_FDAARGOS1433	Enterobacter hormaechei	-	FDAARGOS 1433	GCF_019048245.1	yes	critical	NCBI RefSeq reference genome; E. hormaechei is the most common carbapenem-resistant Enterobacter species
 KAER_KCTC2190	Klebsiella aerogenes	Enterobacter aerogenes	KCTC 2190	GCF_000215745.1	yes	critical	Complete reference of K. aerogenes (formerly Enterobacter aerogenes)
 SMAR_DB11	Serratia marcescens	-	Db11	GCF_000513215.1	yes	critical	Closed reference genome of S. marcescens
+CFRE_MSB1_1H	Citrobacter freundii	-	MSB1_1H	GCF_904859905.1	yes	critical	NCBI RefSeq reference genome of C. freundii
+MMOR_ATCC25830	Morganella morganii	-	ATCC 25830 (subsp. morganii, type strain)	GCF_006094455.1	yes	critical	Complete type-strain genome; NCBI RefSeq reference
 PMIR_HI4320	Proteus mirabilis	-	HI4320	GCF_000069965.1	yes	critical	Uropathogenic reference strain
 MTUB_H37RV	Mycobacterium tuberculosis	-	H37Rv	GCF_000195955.2	yes	critical	Universal M. tuberculosis reference for variant calling and resistance-mutation coordinates
 PAER_PAO1	Pseudomonas aeruginosa	-	PAO1	GCF_000006765.1	yes	high	Canonical P. aeruginosa reference

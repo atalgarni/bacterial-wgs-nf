@@ -207,7 +207,7 @@ With a curated reference (key or `auto`), **Snippy runs only on genomes of the r
 nextflow run main.nf --list_references        # print the curated table and exit
 ```
 
-Curated references (v1.0.0):
+Curated references (v1.0.0: 40 genomes, 34 species). All accessions were checked against NCBI on 2026-10-12 with `datasets summary genome accession`; each organism name matches the expected species.
 
 | Key | Species | Strain | Assembly | Default | WHO BPPL 2024 | Why this strain |
 |---|---|---|---|---|---|---|
@@ -216,9 +216,13 @@ Curated references (v1.0.0):
 | `KPNE_HS11286` | *Klebsiella pneumoniae* | HS11286 | GCF_000240185.1 | ✔ | critical | ST11 KPC-2 carbapenem-resistant clone; NCBI RefSeq reference genome |
 | `KPNE_NTUHK2044` | *Klebsiella pneumoniae* | NTUH-K2044 | GCF_000009885.1 |  | critical | Hypervirulent K1 ST23 liver-abscess strain |
 | `ECOL_MG1655` | *Escherichia coli* | K-12 substr. MG1655 | GCF_000005845.2 | ✔ | critical | Canonical E. coli reference (non-pathogenic; use for core-SNP coordinates) |
-| `ECLO_ATCC13047` | *Enterobacter cloacae* | ATCC 13047 | GCF_000025565.1 | ✔ | critical | Type strain of E. cloacae; complex members are frequent carbapenemase carriers |
+| `ECOL_EC958` | *Escherichia coli* | EC958 (O25b:H4-ST131) | GCF_000285655.3 |  | critical | ST131 pandemic ESBL (CTX-M-15) clone; use for 3GC-resistant E. coli lineage work |
+| `ECLO_ATCC13047` | *Enterobacter cloacae* | ATCC 13047 | GCF_000025565.1 | ✔ | critical | Type strain of E. cloacae sensu stricto (not E. hormaechei: different species, ~88% ANI) |
+| `EHOR_FDAARGOS1433` | *Enterobacter hormaechei* | FDAARGOS 1433 | GCF_019048245.1 | ✔ | critical | NCBI RefSeq reference genome; E. hormaechei is the most common carbapenem-resistant Enterobacter species |
 | `KAER_KCTC2190` | *Klebsiella aerogenes* | KCTC 2190 | GCF_000215745.1 | ✔ | critical | Complete reference of K. aerogenes (formerly Enterobacter aerogenes) |
 | `SMAR_DB11` | *Serratia marcescens* | Db11 | GCF_000513215.1 | ✔ | critical | Closed reference genome of S. marcescens |
+| `CFRE_MSB1_1H` | *Citrobacter freundii* | MSB1_1H | GCF_904859905.1 | ✔ | critical | NCBI RefSeq reference genome of C. freundii |
+| `MMOR_ATCC25830` | *Morganella morganii* | ATCC 25830 (subsp. morganii, type strain) | GCF_006094455.1 | ✔ | critical | Complete type-strain genome; NCBI RefSeq reference |
 | `PMIR_HI4320` | *Proteus mirabilis* | HI4320 | GCF_000069965.1 | ✔ | critical | Uropathogenic reference strain |
 | `MTUB_H37RV` | *Mycobacterium tuberculosis* | H37Rv | GCF_000195955.2 | ✔ | critical | Universal M. tuberculosis reference for variant calling and resistance-mutation coordinates |
 | `PAER_PAO1` | *Pseudomonas aeruginosa* | PAO1 | GCF_000006765.1 | ✔ | high | Canonical P. aeruginosa reference |
@@ -249,6 +253,10 @@ Curated references (v1.0.0):
 | `MABS_ATCC19977` | *Mycobacteroides abscessus* | ATCC 19977 | GCF_000069185.1 | ✔ |  | Type strain of the intrinsically multidrug-resistant M. abscessus |
 
 *How the defaults were chosen:* for each species, the default is the strain most commonly used as the reference in the literature and in NCBI RefSeq, and it is a closed genome. Where a clinically dominant resistant clone differs from the classic laboratory strain, the clone was preferred. For example, *A. baumannii* ACICU (global clone 2, the dominant carbapenem-resistant lineage) and *K. pneumoniae* HS11286 (ST11, KPC-2) are the defaults. Non-default rows (e.g. `ABAU_AB5075`, `KPNE_NTUHK2044`, `SAUR_USA300`) are alternatives for other lineages; select them by key.
+
+*Coverage of the WHO BPPL 2024:* every organism on the list has a reference. For *E. coli*, the default (K-12 MG1655) is the standard coordinate reference; select `ECOL_EC958` for the ST131 ESBL clone. *Enterobacter cloacae* and *E. hormaechei* are separate entries: they are different species, and Bracken reports them separately.
+
+*Limitation for* Salmonella *Typhi:* Bracken identifies *Salmonella enterica* but not the serovar. `--reference auto` therefore always picks `SENT_LT2` (Typhimurium), which is appropriate for non-typhoidal *Salmonella*. For Typhi isolates, select `--reference SENT_CT18` explicitly. Serovar prediction (SeqSero2/SISTR) is on the roadmap.
 
 *Adding or changing references:* edit the TSV, or point `--reference_list` to your own table with the same columns. The best reference for an outbreak is a closed genome from the **same lineage (ST/clonal complex)** as your isolates. A distant reference within the species lowers the aligned core and can hide recombination. If your isolates belong to a lineage not represented here, choose a closed RefSeq genome of that ST and pass it as a file.
 
@@ -433,7 +441,7 @@ No databases are bundled. Download them once and reuse them.
 |---|---|---|
 | **Kraken2/Bracken** (required for the reads entry) | Species gate, organism label | A prebuilt index from <https://benlangmead.github.io/aws-indexes/k2>, e.g. *Standard-8* (8 GB RAM) or *Standard-16*. These include the Bracken `kmer_distrib` files. |
 | **PhiX174** (optional) | Step 1 | NCBI RefSeq `NC_001422.1` (FASTA) |
-| **Reference genome** (optional) | FastANI, Snippy, QUAST | **Nothing to download by hand** for the 31 curated species (36 genomes): use `--reference auto` or a key ([§3.3](#33-choosing-a-reference-genome-curated-library-and---reference-auto)), and it is fetched from NCBI once and cached. For other species, pass a closed genome FASTA. |
+| **Reference genome** (optional) | FastANI, Snippy, QUAST | **Nothing to download by hand** for the 34 curated species (40 genomes): use `--reference auto` or a key ([§3.3](#33-choosing-a-reference-genome-curated-library-and---reference-auto)), and it is fetched from NCBI once and cached. For other species, pass a closed genome FASTA. |
 | **CARD** (optional) | RGI | `wget https://card.mcmaster.ca/latest/data && tar -xjf data ./card.json` |
 | **Trusted proteins** (optional) | Prokka | A protein FASTA of a well-annotated strain of your species |
 | Kaptive | Step 14 | **Nothing to download**: the four databases ship with Kaptive 3 |
@@ -705,7 +713,7 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 * The Trim Galore and Kaptive commands passed real-mode tests on the test data.
 * A full end-to-end run on real isolates in this consolidated form is pending.
 * The Docker profile is untested.
-* The curated reference accessions and the NCBI download step have not yet been tested against live NCBI. The species check in `FETCH_REFERENCE` stops the run if an accession is wrong; please report any such row.
+* All curated accessions were checked against NCBI (organism name and assembly level: complete). The `FETCH_REFERENCE` download itself has not yet been run end-to-end on a real dataset.
 
 **Planned for v1.1:**
 
@@ -715,6 +723,7 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 * IQ-TREE phylogeny and `snp-dists` on the core alignment
 * Optional Gubbins recombination masking
 * Samplesheet (CSV) input
+* *Salmonella* serovar prediction (SeqSero2 or SISTR), so that `--reference auto` can choose Typhi vs non-typhoidal references
 
 ---
 
