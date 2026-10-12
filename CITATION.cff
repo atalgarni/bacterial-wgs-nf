@@ -3,7 +3,14 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "bacterial-wgs-nf: Nextflow pipeline for quality control, species verification, assembly, annotation, antimicrobial resistance, core-genome SNP and pangenome analysis of bacterial isolate genomes"
 version: 1.0.1
-doi: "10.5281/zenodo.23316009"
+doi: "10.5281/zenodo.23316008"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.23316008"
+    description: "Concept DOI (all versions)"
+  - type: doi
+    value: "10.5281/zenodo.23316009"
+    description: "Version 1.0.1"
 date-released: 2026-10-12
 authors:
   - family-names: "Algarni"
