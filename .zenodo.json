@@ -1,6 +1,6 @@
 {
   "title": "bacterial-wgs-nf: Nextflow pipeline for quality control, species verification, assembly, annotation, antimicrobial resistance, core-genome SNP and pangenome analysis of bacterial isolate genomes",
-  "description": "Nextflow DSL2 pipeline for Illumina paired-end bacterial isolate whole-genome sequencing: PhiX removal (BWA-MEM, SAMtools), trimming (fastp), species verification (Kraken2, Bracken) with a purity/identity gate, de novo assembly (SKESA) with an assembly QC gate, ANI to a reference (FastANI), annotation (Prokka), antimicrobial resistance genes (RGI/CARD), core-genome SNP alignment (Snippy), pangenome (Roary), assembly metrics (QUAST) and MultiQC reporting. Developed for carbapenem-resistant Acinetobacter baumannii; species-specific settings are parameters.",
+  "description": "Nextflow DSL2 pipeline for Illumina paired-end bacterial isolate whole-genome sequencing: PhiX removal (BWA-MEM, SAMtools), trimming (Trim Galore/Cutadapt by default, or fastp), species verification (Kraken2, Bracken) with a purity/identity gate, de novo assembly (SKESA) with an assembly QC gate, ANI to a reference (FastANI), annotation (Prokka), antimicrobial resistance genes (RGI/CARD), core-genome SNP alignment (Snippy), pangenome (Roary), assembly metrics (QUAST) and MultiQC reporting. Developed for carbapenem-resistant Acinetobacter baumannii; species-specific settings are parameters.",
   "upload_type": "software",
   "license": "MIT",
   "version": "1.0.0",

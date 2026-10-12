@@ -52,7 +52,7 @@ This workflow brings together analysis steps that were first run as separate pie
 
 Those same steps were used for the genomic analysis of carbapenem-resistant *A. baumannii* (CRAB) isolates from Makkah and Riyadh [1].
 
-Version 1.0.0 consolidates them into one reproducible pipeline. The tools and their order are unchanged. Several defects in the original scripts were fixed on the way (see [§4.3](#43-fixes-relative-to-the-original-scripts)). Because of these fixes, results can differ slightly from the original bash runs. Most notably, samples that previously passed the species gate by chance can now fail it.
+Version 1.0.0 consolidates them into one reproducible pipeline. The order of steps is unchanged. The one tool change is read trimming: the default is now Trim Galore, and fastp, which the published analysis used, is still available with `--trimmer fastp`. Several defects in the original scripts were fixed on the way (see [§4.3](#43-fixes-relative-to-the-original-scripts)). Because of these fixes, results can differ slightly from the original bash runs. Most notably, samples that previously passed the species gate by chance can now fail it.
 
 ## 2. Workflow overview
 
@@ -63,7 +63,7 @@ Version 1.0.0 consolidates them into one reproducible pipeline. The tools and th
   (optional) ──► │ 1  PhiX removal         │ BWA-MEM + SAMtools    │
                  └────────────┬────────────┘                       │
                  ┌────────────▼────────────┐                       │
-                 │ 2  Read trimming / QC   │ fastp                 │
+                 │ 2  Read trimming / QC   │ Trim Galore | fastp   │
                  └────────────┬────────────┘                       │
                  ┌────────────▼────────────┐                       │
                  │ 3  Taxonomic profiling  │ Kraken2               │
@@ -123,11 +123,31 @@ bwa mem -t $CPUS phix.fa R1.fq.gz R2.fq.gz \
 
 A per-sample `<S>_phix.tsv` records raw pairs, kept pairs and PhiX pairs removed.
 
-### 3.2 Read trimming and QC: fastp
+### 3.2 Read trimming and QC: Trim Galore (default) or fastp
 
-fastp [5] does adapter auto-detection for paired-end reads, sliding-window quality trimming and length filtering. It also writes HTML/JSON reports for each sample, and the JSON reports feed MultiQC.
+The trimmer is chosen with `--trimmer`.
 
-fastp's own defaults are used. Extra arguments are passed through `--fastp_args`, for example `--fastp_args "--cut_right --length_required 50"`.
+**Trim Galore (default, `--trimmer trim_galore`).** Trim Galore [27] is a wrapper around Cutadapt [28]. It works in this order:
+
+1. Trims low-quality 3′ ends (Phred < `--trim_quality`, default 20) with the BWA trimming algorithm.
+2. Auto-detects the adapter (Illumina universal, Nextera or small RNA) from the first million reads and removes it. Even 1 bp of overlap at the 3′ end is removed.
+3. Discards pairs in which either read is shorter than `--trim_min_length` (default 36 bp), so R1 and R2 stay synchronised.
+4. Runs FastQC [29] on the trimmed reads (`--trim_galore_fastqc`, default on).
+
+```bash
+trim_galore --paired --cores $N --quality 20 --length 36 \
+            --basename S --gzip --fastqc R1.fq.gz R2.fq.gz
+# → S_val_1.fq.gz, S_val_2.fq.gz, *_trimming_report.txt, *_fastqc.{html,zip}
+```
+
+`--cores` is set to `task.cpus − 4`, limited to 1–8, because each Trim Galore core starts about three threads (Cutadapt plus pigz). Extra options go through `--trim_galore_args`, for example `--trim_galore_args "--clip_R1 5 --clip_R2 5"`.
+
+**fastp (`--trimmer fastp`).** fastp [5] does adapter auto-detection for paired-end reads, sliding-window quality trimming and length filtering in a single pass. It is faster, and its HTML/JSON reports feed MultiQC. fastp's own defaults are used, and extra arguments go through `--fastp_args`. Choose fastp to reproduce the trimming exactly as in the CRAB study [1].
+
+**Which to choose.** Both trimmers produce comparable reads for de novo assembly of bacterial isolates, and the downstream steps accept either.
+
+* Trim Galore uses well-established Cutadapt adapter matching, trims conservatively and includes FastQC.
+* fastp is several times faster and also corrects overlapping bases in paired reads.
 
 ### 3.3 Taxonomic classification: Kraken2
 
@@ -234,7 +254,7 @@ RGI uses DIAMOND [22] for protein homology and reports Perfect and Strict hits. 
 
 ### 3.13 Assembly QC and reporting: QUAST + MultiQC
 
-QUAST [23] summarises every assembly that passed, against the reference when one is given. MultiQC [24] combines the fastp, Kraken2, QUAST and Prokka reports into one HTML page. A separate `05_qc_gates/` folder holds the pipeline's own gate decisions as TSV tables.
+QUAST [23] summarises every assembly that passed, against the reference when one is given. MultiQC [24] combines the Trim Galore/FastQC (or fastp), Kraken2, QUAST and Prokka reports into one HTML page. A separate `05_qc_gates/` folder holds the pipeline's own gate decisions as TSV tables.
 
 ## 4. Quality-control gates
 
@@ -411,7 +431,12 @@ nextflow run main.nf -profile conda <same options> -resume
 | Parameter | Default | Description |
 |---|---|---|
 | `--phix` | – | PhiX FASTA. Leave it out to skip PhiX removal. |
-| `--fastp_args` | `""` | Extra fastp arguments, passed through unchanged. |
+| `--trimmer` | `trim_galore` | Read trimmer: `trim_galore` or `fastp`. |
+| `--trim_quality` | `20` | Trim Galore: Phred cut-off for 3′ quality trimming. |
+| `--trim_min_length` | `36` | Trim Galore: drop pairs with a read shorter than this. |
+| `--trim_galore_fastqc` | `true` | Trim Galore: run FastQC on the trimmed reads. |
+| `--trim_galore_args` | `""` | Extra Trim Galore arguments, passed through unchanged. |
+| `--fastp_args` | `""` | Extra fastp arguments (only with `--trimmer fastp`). |
 | `--kraken_db` | – | Kraken2/Bracken database folder. Required unless `--skip_species_check`. |
 | `--read_len` | `100` | Bracken read length. Must match a `kmer_distrib` file in the database. |
 | `--bracken_level` | `S` | Bracken taxonomic level. |
@@ -455,7 +480,8 @@ nextflow run main.nf -profile conda <same options> -resume
 ```
 results/
 ├── 01_phix_removed/   <S>_phix.tsv                       (read counts; cleaned reads stay in work/)
-├── 02_fastp/          <S>_fastp.{html,json}
+├── 02_trim_galore/    *_trimming_report.txt, <S>_val_{1,2}_fastqc.{html,zip}
+│   (or 02_fastp/      <S>_fastp.{html,json}  with --trimmer fastp)
 ├── 03_kraken2/        <S>.kraken2.report
 ├── 04_bracken/        <S>.bracken, <S>_bracken.report
 ├── 05_qc_gates/       species_check.tsv, assembly_qc.tsv
@@ -518,7 +544,8 @@ Versions pinned in `nextflow.config` (Bioconda):
 |---|---|---|
 | BWA | 0.7.18 | PhiX removal |
 | SAMtools | 1.20 | PhiX removal |
-| fastp | 0.23.4 | read QC |
+| Trim Galore | 0.6.10 | read trimming (default) |
+| fastp | 0.23.4 | read trimming (`--trimmer fastp`) |
 | Kraken2 | 2.1.3 | classification |
 | Bracken | 2.9 | abundance |
 | SKESA | 2.5.1 | assembly |
@@ -616,6 +643,9 @@ If you use this workflow, please cite the software (see `CITATION.cff`; the Zeno
 24. Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. *Bioinformatics.* 2016;32(19):3047–3048. doi:10.1093/bioinformatics/btw354
 25. Grüning B, Dale R, Sjödin A, *et al.* Bioconda: sustainable and comprehensive software distribution for the life sciences. *Nat Methods.* 2018;15:475–476. doi:10.1038/s41592-018-0046-7
 26. Di Tommaso P, Chatzou M, Floden EW, *et al.* Nextflow enables reproducible computational workflows. *Nat Biotechnol.* 2017;35:316–319. doi:10.1038/nbt.3820
+27. Krueger F, James F, Ewels P, Afyounian E, Weinstein M, Schuster-Boeckler B, Hulselmans G, sclamons. FelixKrueger/TrimGalore. Zenodo. doi:10.5281/zenodo.5127898
+28. Martin M. Cutadapt removes adapter sequences from high-throughput sequencing reads. *EMBnet.journal.* 2011;17(1):10–12. doi:10.14806/ej.17.1.200
+29. Andrews S. FastQC: a quality control tool for high throughput sequence data. 2010. https://www.bioinformatics.babraham.ac.uk/projects/fastqc/
 
 ---
 
