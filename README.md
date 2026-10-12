@@ -672,7 +672,7 @@ For publications, also report the CARD version (shown by `rgi database --version
 nextflow run main.nf -profile test -stub
 ```
 
-This uses the tiny dataset in `test_data/` and runs every branch of the workflow in a few seconds, without the real tools. The stub assigns the three test isolates to *A. baumannii*, *K. pneumoniae* and *E. coli*. You should therefore see Kaptive run with `ab_*` and `kpsc_*` databases on the first two and skip the third, with a log message.
+This uses the tiny dataset in `test_data/` and runs every branch of the workflow in a few seconds, without the real tools. The stub assigns the three test isolates to *A. baumannii*, *K. pneumoniae* and *E. coli*. You should therefore see Kaptive run with `ab_*` and `kpsc_*` databases on the first two and skip the third, with a log message. Add `--reference auto` to exercise the reference selection: the stub picks a curated reference, and Snippy runs only on the matching species.
 
 ---
 
@@ -705,6 +705,7 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 * The Trim Galore and Kaptive commands passed real-mode tests on the test data.
 * A full end-to-end run on real isolates in this consolidated form is pending.
 * The Docker profile is untested.
+* The curated reference accessions and the NCBI download step have not yet been tested against live NCBI. The species check in `FETCH_REFERENCE` stops the run if an accession is wrong; please report any such row.
 
 **Planned for v1.1:**
 
