@@ -3,7 +3,7 @@
   "description": "Species-agnostic Nextflow DSL2 pipeline for Illumina paired-end bacterial isolate whole-genome sequencing: PhiX removal (BWA-MEM, SAMtools), read trimming (Trim Galore/Cutadapt by default, or fastp), species identification and purity check (Kraken2, Bracken) with a QC gate, de novo assembly (SKESA) with an assembly QC gate, ANI to a reference (FastANI), annotation (Prokka), antimicrobial resistance genes (RGI/CARD), core-genome SNP alignment (Snippy), pangenome (Roary), assembly metrics (QUAST) and MultiQC reporting. Capsule and outer-core/O-antigen locus typing (Kaptive 3) runs automatically for Acinetobacter baumannii and the Klebsiella pneumoniae species complex, the only species with Kaptive databases.",
   "upload_type": "software",
   "license": "MIT",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "keywords": [
     "whole-genome sequencing",
     "bacterial genomics",

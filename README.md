@@ -4,6 +4,7 @@
 
 [![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A524.04.0-23aa62.svg)](https://www.nextflow.io/)
 [![run with conda](https://img.shields.io/badge/run%20with-conda-3EB049?logo=anaconda)](https://docs.conda.io/en/latest/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23316009.svg)](https://doi.org/10.5281/zenodo.23316009)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 `bacterial-wgs-nf` processes paired-end short reads from bacterial **isolates**, one genome per sample. For every sample it:
@@ -207,7 +208,7 @@ With a curated reference (key or `auto`), **Snippy runs only on genomes of the r
 nextflow run main.nf --list_references        # print the curated table and exit
 ```
 
-Curated references (v1.0.0: 40 genomes, 34 species). All accessions were checked against NCBI on 2026-10-12 with `datasets summary genome accession`; each organism name matches the expected species.
+Curated references (v1.0.1: 40 genomes, 34 species). All accessions were checked against NCBI on 2026-10-12 with `datasets summary genome accession`; each organism name matches the expected species.
 
 | Key | Species | Strain | Assembly | Default | WHO BPPL 2024 | Why this strain |
 |---|---|---|---|---|---|---|
@@ -426,7 +427,7 @@ An assembly **passes** when it has ≤ `--max_contigs` (default 200) contigs of 
    ```bash
    mamba create -n nextflow -c bioconda -c conda-forge nextflow openjdk=17
    ```
-2. **The pipeline:** `git clone https://github.com/atalgarni/bacterial-wgs-nf.git`, or run it directly with `nextflow run atalgarni/bacterial-wgs-nf -r v1.0.0`.
+2. **The pipeline:** `git clone https://github.com/atalgarni/bacterial-wgs-nf.git`, or run it directly with `nextflow run atalgarni/bacterial-wgs-nf -r v1.0.1`.
 3. **The tools:** nothing to install by hand.
    * With `-profile conda`, Nextflow builds one Bioconda [2] environment per tool on first use, using mamba, and caches it under `work/conda/`. The first run therefore takes longer.
    * `-profile docker` uses Seqera Wave containers built from the same specs. *This profile is untested.*
@@ -706,7 +707,7 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 
 ## 16. Status and roadmap
 
-**v1.0.0:**
+**v1.0.1** (identical code to v1.0.0; re-released for Zenodo archiving):
 
 * All branches are verified with stub runs.
 * Both QC gates passed real-mode tests on synthetic data.
@@ -747,9 +748,9 @@ Because of these fixes, results can differ slightly from the original runs.
 
 ## 18. Citation
 
-Please cite the pipeline (see `CITATION.cff`; the Zenodo DOI will be added at release) **and** the tools you used from [§19](#19-references).
+Please cite the pipeline **and** the tools you used from [§19](#19-references).
 
-> Algarni AT. *bacterial-wgs-nf: a species-agnostic Nextflow workflow for short-read bacterial genome assembly, annotation, pangenome, core-SNP and AMR analysis.* https://github.com/atalgarni/bacterial-wgs-nf
+> Algarni AT. *bacterial-wgs-nf: a species-agnostic Nextflow workflow for short-read bacterial genome assembly, annotation, pangenome, core-SNP and AMR analysis* (v1.0.1). Zenodo. 2026. doi:10.5281/zenodo.23316009. https://github.com/atalgarni/bacterial-wgs-nf
 
 ---
 
