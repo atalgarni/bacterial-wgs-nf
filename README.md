@@ -4,7 +4,7 @@
 
 [![Nextflow](https://img.shields.io/badge/nextflow%20DSL2-%E2%89%A524.04.0-23aa62.svg)](https://www.nextflow.io/)
 [![run with conda](https://img.shields.io/badge/run%20with-conda-3EB049?logo=anaconda)](https://docs.conda.io/en/latest/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23316009.svg)](https://doi.org/10.5281/zenodo.23316009)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23316008.svg)](https://doi.org/10.5281/zenodo.23316008)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 `bacterial-wgs-nf` processes paired-end short reads from bacterial **isolates**, one genome per sample. For every sample it:
@@ -750,7 +750,12 @@ Because of these fixes, results can differ slightly from the original runs.
 
 Please cite the pipeline **and** the tools you used from [§19](#19-references).
 
-> Algarni AT. *bacterial-wgs-nf: a species-agnostic Nextflow workflow for short-read bacterial genome assembly, annotation, pangenome, core-SNP and AMR analysis* (v1.0.1). Zenodo. 2026. doi:10.5281/zenodo.23316009. https://github.com/atalgarni/bacterial-wgs-nf
+> Algarni AT. *bacterial-wgs-nf: a species-agnostic Nextflow workflow for short-read bacterial genome assembly, annotation, pangenome, core-SNP and AMR analysis* Zenodo. 2026. doi:10.5281/zenodo.23316008. https://github.com/atalgarni/bacterial-wgs-nf
+
+| DOI | Resolves to |
+|---|---|
+| [10.5281/zenodo.23316008](https://doi.org/10.5281/zenodo.23316008) | All versions (always the latest); use this to cite the pipeline |
+| [10.5281/zenodo.23316009](https://doi.org/10.5281/zenodo.23316009) | v1.0.1 specifically; use this to cite the exact version you ran |
 
 ---
 
