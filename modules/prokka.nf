@@ -1,6 +1,9 @@
 // =============================================================================
 //  Module: PROKKA
 //  Gene prediction and functional annotation of each assembly.
+//  Organism label (--genus/--species) is taken, in order of priority, from
+//  --prokka_genus/--prokka_species, else the sample's species (Bracken top
+//  species or --species). Unknown species → Prokka's generic defaults.
 // =============================================================================
 
 process PROKKA {
@@ -10,7 +13,7 @@ process PROKKA {
     publishDir "${params.outdir}/08_prokka", mode: 'copy'
 
     input:
-    tuple val(sample_id), path(contigs)
+    tuple val(sample_id), path(contigs), val(organism)
     path proteins
 
     output:
@@ -18,8 +21,12 @@ process PROKKA {
     path "${sample_id}/${sample_id}.gff",        emit: gff
 
     script:
-    def genus      = params.prokka_genus   ? "--genus ${params.prokka_genus} --usegenus" : ''
-    def species    = params.prokka_species ? "--species ${params.prokka_species}"        : ''
+    // "Acinetobacter baumannii" → genus/species; brackets and odd characters dropped
+    def words   = (organism ?: '').replaceAll(/[^A-Za-z0-9_. -]/, '').tokenize(' ')
+    def g       = params.prokka_genus   ?: (words.size() >= 1 && organism != 'unknown' ? words[0] : null)
+    def sp      = params.prokka_species ?: (words.size() >= 2 && organism != 'unknown' ? words[1] : null)
+    def genus   = g  ? "--genus ${g}" + (params.prokka_usegenus ? ' --usegenus' : '') : ''
+    def species = sp ? "--species ${sp}" : ''
     def prot       = proteins.name != 'NO_FILE' ? "--proteins ${proteins}"              : ''
     """
     prokka --outdir ${sample_id} --force --prefix ${sample_id} \\
