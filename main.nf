@@ -77,10 +77,10 @@ def reference_mode() {
 def print_reference_table() {
     def w = { s, n -> s.toString().padRight(n) }
     def out = new StringBuilder("\nCurated reference genomes (${params.reference_list})\n")
-    out << w('key', 17) << w('species', 30) << w('strain', 26) << w('assembly', 18) << w('default', 8) << 'WHO 2024\n'
-    out << ('-' * 108) << '\n'
+    out << w('key', 19) << w('species', 30) << w('strain', 42) << w('assembly', 18) << w('default', 8) << 'WHO 2024\n'
+    out << ('-' * 126) << '\n'
     REF_TABLE.each { r ->
-        out << w(r.key, 17) << w(r.species, 30) << w(r.strain, 26) << w(r.assembly, 18) << w(r.is_default ? 'yes' : '', 8) << r.who << '\n'
+        out << w(r.key, 19) << w(r.species, 30) << w(r.strain, 42) << w(r.assembly, 18) << w(r.is_default ? 'yes' : '', 8) << r.who << '\n'
     }
     out << '\nUse: --reference <key>  |  --reference auto  |  --reference /path/genome.fasta\n'
     log.info out.toString()
