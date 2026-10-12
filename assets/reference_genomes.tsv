@@ -1,0 +1,37 @@
+key	species	synonyms	strain	assembly	default	who_bppl_2024	rationale
+ABAU_ACICU	Acinetobacter baumannii	-	ACICU	GCF_000018445.1	yes	critical	Global clone 2 (ST2-Pasteur), carbapenem-resistant; the dominant CRAB lineage worldwide
+ABAU_AB5075	Acinetobacter baumannii	-	AB5075-UW	GCF_000963815.1	no	critical	Global clone 1, multidrug-resistant and virulent model strain
+KPNE_HS11286	Klebsiella pneumoniae	-	HS11286	GCF_000240185.1	yes	critical	ST11 KPC-2 carbapenem-resistant clone; NCBI RefSeq reference genome
+KPNE_NTUHK2044	Klebsiella pneumoniae	-	NTUH-K2044	GCF_000009885.1	no	critical	Hypervirulent K1 ST23 liver-abscess strain
+ECOL_MG1655	Escherichia coli	-	K-12 substr. MG1655	GCF_000005845.2	yes	critical	Canonical E. coli reference (non-pathogenic; use for core-SNP coordinates)
+ECLO_ATCC13047	Enterobacter cloacae	Enterobacter hormaechei	ATCC 13047	GCF_000025565.1	yes	critical	Type strain of E. cloacae; complex members are frequent carbapenemase carriers
+KAER_KCTC2190	Klebsiella aerogenes	Enterobacter aerogenes	KCTC 2190	GCF_000215745.1	yes	critical	Complete reference of K. aerogenes (formerly Enterobacter aerogenes)
+SMAR_DB11	Serratia marcescens	-	Db11	GCF_000513215.1	yes	critical	Closed reference genome of S. marcescens
+PMIR_HI4320	Proteus mirabilis	-	HI4320	GCF_000069965.1	yes	critical	Uropathogenic reference strain
+MTUB_H37RV	Mycobacterium tuberculosis	-	H37Rv	GCF_000195955.2	yes	critical	Universal M. tuberculosis reference for variant calling and resistance-mutation coordinates
+PAER_PAO1	Pseudomonas aeruginosa	-	PAO1	GCF_000006765.1	yes	high	Canonical P. aeruginosa reference
+PAER_PA14	Pseudomonas aeruginosa	-	UCBPP-PA14	GCF_000014625.1	no	high	Highly virulent clinical strain
+SAUR_NCTC8325	Staphylococcus aureus	-	NCTC 8325	GCF_000013425.1	yes	high	Canonical S. aureus reference (CC8)
+SAUR_USA300	Staphylococcus aureus	-	USA300_FPR3757	GCF_000013465.1	no	high	Community-associated MRSA, ST8 USA300
+EFAM_AUS0004	Enterococcus faecium	-	Aus0004	GCF_000250945.1	yes	high	Vancomycin-resistant hospital-adapted clade A1 (CC17) strain
+EFAE_V583	Enterococcus faecalis	-	V583	GCF_000007785.1	yes	-	First sequenced vancomycin-resistant E. faecalis
+SENT_LT2	Salmonella enterica	-	serovar Typhimurium LT2	GCF_000006945.2	yes	high	Canonical non-typhoidal Salmonella reference
+SENT_CT18	Salmonella enterica	-	serovar Typhi CT18	GCF_000195995.1	no	high	Multidrug-resistant S. Typhi reference
+SFLE_2A301	Shigella flexneri	-	2a str. 301	GCF_000006925.2	yes	high	S. flexneri serotype 2a reference
+SSON_SS046	Shigella sonnei	-	Ss046	GCF_000092525.1	yes	high	S. sonnei reference
+NGON_FA1090	Neisseria gonorrhoeae	-	FA 1090	GCF_000006845.1	yes	high	Canonical N. gonorrhoeae reference
+NMEN_MC58	Neisseria meningitidis	-	MC58	GCF_000008805.1	yes	-	Serogroup B reference
+SPNE_TIGR4	Streptococcus pneumoniae	-	TIGR4	GCF_000006885.1	yes	medium	Virulent serotype 4 reference
+SPYO_SF370	Streptococcus pyogenes	-	M1 GAS SF370	GCF_000006785.2	yes	medium	emm1 group A Streptococcus reference
+SAGA_2603VR	Streptococcus agalactiae	-	2603V/R	GCF_000007265.1	yes	medium	Serotype V group B Streptococcus reference
+HINF_RDKW20	Haemophilus influenzae	-	Rd KW20	GCF_000027305.1	yes	medium	First sequenced bacterial genome; H. influenzae reference
+CJEJ_NCTC11168	Campylobacter jejuni	-	NCTC 11168	GCF_000009085.1	yes	-	Canonical C. jejuni reference (WHO 2017 high priority)
+HPYL_26695	Helicobacter pylori	-	26695	GCF_000008525.1	yes	-	Canonical H. pylori reference (WHO 2017 high priority)
+CDIF_630	Clostridioides difficile	Clostridium difficile	630	GCF_000009205.2	yes	-	Multidrug-resistant epidemic strain; C. difficile reference
+LMON_EGDE	Listeria monocytogenes	-	EGD-e	GCF_000196035.1	yes	-	Canonical L. monocytogenes reference
+VCHO_N16961	Vibrio cholerae	-	O1 El Tor N16961	GCF_000006745.1	yes	-	Seventh-pandemic reference (two chromosomes)
+SMAL_K279A	Stenotrophomonas maltophilia	-	K279a	GCF_000072485.1	yes	-	Clinical multidrug-resistant reference
+BPSE_K96243	Burkholderia pseudomallei	-	K96243	GCF_000011545.1	yes	-	Melioidosis reference (two chromosomes)
+BMEL_16M	Brucella melitensis	-	16M	GCF_000007125.1	yes	-	Brucellosis reference (two chromosomes); endemic in the Middle East
+LPNE_PHIL1	Legionella pneumophila	-	Philadelphia 1	GCF_000008485.1	yes	-	Original outbreak strain; L. pneumophila reference
+MABS_ATCC19977	Mycobacteroides abscessus	Mycobacterium abscessus	ATCC 19977	GCF_000069185.1	yes	-	Type strain of the intrinsically multidrug-resistant M. abscessus

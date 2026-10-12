@@ -60,7 +60,7 @@ nextflow run main.nf -profile conda \
     --reads 'reads/*_R{1,2}.fastq.gz' \
     --kraken_db /db/k2_standard_08gb \
     --card_json /db/card.json \
-    --reference /db/reference.fasta \
+    --reference auto \
     --outdir results
 ```
 
@@ -113,10 +113,10 @@ Open `results/05_qc_gates/` first to see which samples passed, then `results/13_
 | 5 | **Species gate** | built-in | PASS/FAIL on purity; the top species is used as the organism label | as step 3 | `05_qc_gates` |
 | 6 | Assembly | SKESA | Draft genome (contigs) | reads entry | `06_assembly` |
 | 7 | **Assembly gate** | built-in | PASS/FAIL on fragmentation; N50, size, GC% | always | `05_qc_gates` |
-| 8 | ANI | FastANI | Identity to the reference genome | `--reference` given | `07_fastani` |
+| 8 | ANI | FastANI | Identity to the reference genome | `--reference` set (file, key or `auto`) | `07_fastani` |
 | 9 | Annotation | Prokka | Genes, proteins, GFF/GenBank | always | `08_prokka` |
 | 9b | Pangenome | Roary | Gene presence/absence, core-gene alignment | ≥ 2 genomes pass | `09_pangenome` |
-| 10 | Variant calling | Snippy | SNPs of each genome against the reference | `--reference` given | `10_snippy` |
+| 10 | Variant calling | Snippy | SNPs of each genome against the reference (same-species genomes only with a curated reference) | `--reference` set | `10_snippy` |
 | 10b | Core SNPs | snippy-core | Core-genome SNP alignment for phylogeny | ≥ 2 genomes + reference | `10_snippy/core` |
 | 11 | AMR genes | RGI + CARD | Resistance genes and mutations | `--card_json` given | `11_rgi` |
 | 12 | Assembly QC | QUAST | Assembly statistics report | always | `12_quast` |
@@ -180,6 +180,78 @@ The species gate checks **purity** by default. The top species must make up ≥ 
 
 Do not over-interpret a Kaptive call from the wrong organism. The loci are species-specific, and a "match" in another genus is meaningless. This is why `auto` mode depends on the species label.
 
+### 3.3 Choosing a reference genome: curated library and `--reference auto`
+
+FastANI, Snippy and QUAST need a reference genome, and core-SNP analysis is only meaningful against a closed genome of the **same species**. To spare users from searching NCBI, the pipeline ships a curated table, `assets/reference_genomes.tsv`. It lists widely used, complete reference strains of the clinically most important, virulent and antibiotic-resistant bacteria: the ESKAPE organisms, the WHO Bacterial Priority Pathogens List 2024 [34], and other major pathogens. Each entry has a short **key** (e.g. `KPNE_HS11286`) that you can pass to `--reference`.
+
+`--reference` accepts three kinds of value:
+
+| Value | What happens |
+|---|---|
+| `/path/genome.fasta` | Your own reference is used for all samples (previous behaviour). |
+| a key, e.g. `ABAU_ACICU` | That curated genome is downloaded from NCBI and used. |
+| `auto` | The pipeline takes the **most frequent species** among the genomes that passed QC (from the species step), looks up its default key and downloads that genome. |
+
+How a curated reference is fetched (`FETCH_REFERENCE`):
+
+1. `datasets download genome accession <GCF_…>` (NCBI Datasets CLI [35]) downloads the assembly. This needs internet access on the machine that runs the pipeline.
+2. **Safety check:** the organism name recorded by NCBI must match the expected species. If it does not, the run stops with an error, so a wrong accession can never silently become a reference.
+3. Only the **chromosome(s)** are kept and plasmids are dropped, so that SNP coordinates are chromosomal. *Vibrio*, *Burkholderia* and *Brucella* keep both chromosomes.
+4. The FASTA and an `.info.tsv` (accession, NCBI organism name, length) are stored in `--reference_cache` (default `./reference_cache/<key>/`) and reused by later runs without downloading again.
+
+With a curated reference (key or `auto`), **Snippy runs only on genomes of the reference's species**. A *K. pneumoniae* genome is never aligned to an *A. baumannii* reference; the log lists the excluded samples. Genomes labelled `unknown` are kept. FastANI still runs on every genome, so off-species genomes stand out by their low ANI.
+
+**Suggestions are always written**, even without `--reference`: `05_qc_gates/reference_suggestion.tsv` lists every species found, the number of genomes and the suggested key. You can therefore run once, look at the suggestion, and re-run with `-resume --reference <key>`.
+
+```bash
+nextflow run main.nf --list_references        # print the curated table and exit
+```
+
+Curated references (v1.0.0):
+
+| Key | Species | Strain | Assembly | Default | WHO BPPL 2024 | Why this strain |
+|---|---|---|---|---|---|---|
+| `ABAU_ACICU` | *Acinetobacter baumannii* | ACICU | GCF_000018445.1 | ✔ | critical | Global clone 2 (ST2-Pasteur), carbapenem-resistant; the dominant CRAB lineage worldwide |
+| `ABAU_AB5075` | *Acinetobacter baumannii* | AB5075-UW | GCF_000963815.1 |  | critical | Global clone 1, multidrug-resistant and virulent model strain |
+| `KPNE_HS11286` | *Klebsiella pneumoniae* | HS11286 | GCF_000240185.1 | ✔ | critical | ST11 KPC-2 carbapenem-resistant clone; NCBI RefSeq reference genome |
+| `KPNE_NTUHK2044` | *Klebsiella pneumoniae* | NTUH-K2044 | GCF_000009885.1 |  | critical | Hypervirulent K1 ST23 liver-abscess strain |
+| `ECOL_MG1655` | *Escherichia coli* | K-12 substr. MG1655 | GCF_000005845.2 | ✔ | critical | Canonical E. coli reference (non-pathogenic; use for core-SNP coordinates) |
+| `ECLO_ATCC13047` | *Enterobacter cloacae* | ATCC 13047 | GCF_000025565.1 | ✔ | critical | Type strain of E. cloacae; complex members are frequent carbapenemase carriers |
+| `KAER_KCTC2190` | *Klebsiella aerogenes* | KCTC 2190 | GCF_000215745.1 | ✔ | critical | Complete reference of K. aerogenes (formerly Enterobacter aerogenes) |
+| `SMAR_DB11` | *Serratia marcescens* | Db11 | GCF_000513215.1 | ✔ | critical | Closed reference genome of S. marcescens |
+| `PMIR_HI4320` | *Proteus mirabilis* | HI4320 | GCF_000069965.1 | ✔ | critical | Uropathogenic reference strain |
+| `MTUB_H37RV` | *Mycobacterium tuberculosis* | H37Rv | GCF_000195955.2 | ✔ | critical | Universal M. tuberculosis reference for variant calling and resistance-mutation coordinates |
+| `PAER_PAO1` | *Pseudomonas aeruginosa* | PAO1 | GCF_000006765.1 | ✔ | high | Canonical P. aeruginosa reference |
+| `PAER_PA14` | *Pseudomonas aeruginosa* | UCBPP-PA14 | GCF_000014625.1 |  | high | Highly virulent clinical strain |
+| `SAUR_NCTC8325` | *Staphylococcus aureus* | NCTC 8325 | GCF_000013425.1 | ✔ | high | Canonical S. aureus reference (CC8) |
+| `SAUR_USA300` | *Staphylococcus aureus* | USA300_FPR3757 | GCF_000013465.1 |  | high | Community-associated MRSA, ST8 USA300 |
+| `EFAM_AUS0004` | *Enterococcus faecium* | Aus0004 | GCF_000250945.1 | ✔ | high | Vancomycin-resistant hospital-adapted clade A1 (CC17) strain |
+| `EFAE_V583` | *Enterococcus faecalis* | V583 | GCF_000007785.1 | ✔ |  | First sequenced vancomycin-resistant E. faecalis |
+| `SENT_LT2` | *Salmonella enterica* | serovar Typhimurium LT2 | GCF_000006945.2 | ✔ | high | Canonical non-typhoidal Salmonella reference |
+| `SENT_CT18` | *Salmonella enterica* | serovar Typhi CT18 | GCF_000195995.1 |  | high | Multidrug-resistant S. Typhi reference |
+| `SFLE_2A301` | *Shigella flexneri* | 2a str. 301 | GCF_000006925.2 | ✔ | high | S. flexneri serotype 2a reference |
+| `SSON_SS046` | *Shigella sonnei* | Ss046 | GCF_000092525.1 | ✔ | high | S. sonnei reference |
+| `NGON_FA1090` | *Neisseria gonorrhoeae* | FA 1090 | GCF_000006845.1 | ✔ | high | Canonical N. gonorrhoeae reference |
+| `NMEN_MC58` | *Neisseria meningitidis* | MC58 | GCF_000008805.1 | ✔ |  | Serogroup B reference |
+| `SPNE_TIGR4` | *Streptococcus pneumoniae* | TIGR4 | GCF_000006885.1 | ✔ | medium | Virulent serotype 4 reference |
+| `SPYO_SF370` | *Streptococcus pyogenes* | M1 GAS SF370 | GCF_000006785.2 | ✔ | medium | emm1 group A Streptococcus reference |
+| `SAGA_2603VR` | *Streptococcus agalactiae* | 2603V/R | GCF_000007265.1 | ✔ | medium | Serotype V group B Streptococcus reference |
+| `HINF_RDKW20` | *Haemophilus influenzae* | Rd KW20 | GCF_000027305.1 | ✔ | medium | First sequenced bacterial genome; H. influenzae reference |
+| `CJEJ_NCTC11168` | *Campylobacter jejuni* | NCTC 11168 | GCF_000009085.1 | ✔ |  | Canonical C. jejuni reference (WHO 2017 high priority) |
+| `HPYL_26695` | *Helicobacter pylori* | 26695 | GCF_000008525.1 | ✔ |  | Canonical H. pylori reference (WHO 2017 high priority) |
+| `CDIF_630` | *Clostridioides difficile* | 630 | GCF_000009205.2 | ✔ |  | Multidrug-resistant epidemic strain; C. difficile reference |
+| `LMON_EGDE` | *Listeria monocytogenes* | EGD-e | GCF_000196035.1 | ✔ |  | Canonical L. monocytogenes reference |
+| `VCHO_N16961` | *Vibrio cholerae* | O1 El Tor N16961 | GCF_000006745.1 | ✔ |  | Seventh-pandemic reference (two chromosomes) |
+| `SMAL_K279A` | *Stenotrophomonas maltophilia* | K279a | GCF_000072485.1 | ✔ |  | Clinical multidrug-resistant reference |
+| `BPSE_K96243` | *Burkholderia pseudomallei* | K96243 | GCF_000011545.1 | ✔ |  | Melioidosis reference (two chromosomes) |
+| `BMEL_16M` | *Brucella melitensis* | 16M | GCF_000007125.1 | ✔ |  | Brucellosis reference (two chromosomes); endemic in the Middle East |
+| `LPNE_PHIL1` | *Legionella pneumophila* | Philadelphia 1 | GCF_000008485.1 | ✔ |  | Original outbreak strain; L. pneumophila reference |
+| `MABS_ATCC19977` | *Mycobacteroides abscessus* | ATCC 19977 | GCF_000069185.1 | ✔ |  | Type strain of the intrinsically multidrug-resistant M. abscessus |
+
+*How the defaults were chosen:* for each species, the default is the strain most commonly used as the reference in the literature and in NCBI RefSeq, and it is a closed genome. Where a clinically dominant resistant clone differs from the classic laboratory strain, the clone was preferred. For example, *A. baumannii* ACICU (global clone 2, the dominant carbapenem-resistant lineage) and *K. pneumoniae* HS11286 (ST11, KPC-2) are the defaults. Non-default rows (e.g. `ABAU_AB5075`, `KPNE_NTUHK2044`, `SAUR_USA300`) are alternatives for other lineages; select them by key.
+
+*Adding or changing references:* edit the TSV, or point `--reference_list` to your own table with the same columns. The best reference for an outbreak is a closed genome from the **same lineage (ST/clonal complex)** as your isolates. A distant reference within the species lowers the aligned core and can hide recombination. If your isolates belong to a lineage not represented here, choose a closed RefSeq genome of that ST and pass it as a file.
+
 ---
 
 ## 4. The steps in detail
@@ -238,7 +310,7 @@ skesa --reads R1,R2 --cores $CPUS --memory $GB --min_contig 500 > S_contigs.fast
 
 ### 4.5 ANI to a reference: FastANI
 
-With `--reference`, FastANI [13] computes the whole-genome average nucleotide identity of each assembly to the reference. ≥ 95–96 % ANI means the same species. This is an assembly-based check that is independent of Kraken2.
+With a reference (file, key or `auto`), FastANI [13] computes the whole-genome average nucleotide identity of each assembly to the reference. ≥ 95–96 % ANI means the same species. This is an assembly-based check that is independent of Kraken2.
 
 ### 4.6 Annotation: Prokka
 
@@ -274,7 +346,7 @@ Roary runs only when at least 2 genomes pass. Use genomes of **one species**: a 
 
 ### 4.8 Core-genome SNPs: Snippy + snippy-core
 
-With `--reference`, each assembly is aligned to the reference with Snippy [23] in contig mode (`--ctgs`). Snippy uses BWA-MEM for mapping and FreeBayes [24] for variant calling.
+With a reference, each assembly is aligned to the reference with Snippy [23] in contig mode (`--ctgs`). Snippy uses BWA-MEM for mapping and FreeBayes [24] for variant calling.
 
 `snippy-core` combines the samples into:
 
@@ -282,7 +354,7 @@ With `--reference`, each assembly is aligned to the reference with Snippy [23] i
 * `core.full.aln`: the whole-genome alignment;
 * `core.txt`: per-sample alignment statistics.
 
-Choose a closed reference of the **same species** as your isolates.
+Use a closed reference of the **same species** as your isolates, ideally the same lineage ([§3.3](#33-choosing-a-reference-genome-curated-library-and---reference-auto)).
 
 ### 4.9 AMR: RGI + CARD
 
@@ -361,7 +433,7 @@ No databases are bundled. Download them once and reuse them.
 |---|---|---|
 | **Kraken2/Bracken** (required for the reads entry) | Species gate, organism label | A prebuilt index from <https://benlangmead.github.io/aws-indexes/k2>, e.g. *Standard-8* (8 GB RAM) or *Standard-16*. These include the Bracken `kmer_distrib` files. |
 | **PhiX174** (optional) | Step 1 | NCBI RefSeq `NC_001422.1` (FASTA) |
-| **Reference genome** (optional) | FastANI, Snippy, QUAST | A closed genome of the same species as your isolates (NCBI RefSeq) |
+| **Reference genome** (optional) | FastANI, Snippy, QUAST | **Nothing to download by hand** for the 31 curated species (36 genomes): use `--reference auto` or a key ([§3.3](#33-choosing-a-reference-genome-curated-library-and---reference-auto)), and it is fetched from NCBI once and cached. For other species, pass a closed genome FASTA. |
 | **CARD** (optional) | RGI | `wget https://card.mcmaster.ca/latest/data && tar -xjf data ./card.json` |
 | **Trusted proteins** (optional) | Prokka | A protein FASTA of a well-annotated strain of your species |
 | Kaptive | Step 14 | **Nothing to download**: the four databases ship with Kaptive 3 |
@@ -385,7 +457,7 @@ nextflow run main.nf -profile conda \
 nextflow run main.nf -profile conda \
   --reads 'reads/*_R{1,2}.fastq.gz' --kraken_db db/k2_standard_08gb \
   --target_species "Klebsiella pneumoniae" \
-  --reference db/Kp_HS11286.fasta --card_json db/card.json \
+  --reference KPNE_HS11286 --card_json db/card.json \
   --phix db/phix.fa --outdir kp_outbreak
 ```
 
@@ -395,7 +467,15 @@ nextflow run main.nf -profile conda \
 nextflow run main.nf -profile conda \
   --reads 'reads/*_R{1,2}.fastq.gz' --kraken_db db/k2_standard_08gb \
   --target_species "Acinetobacter baumannii" --trimmer fastp \
-  --reference db/Ab_ATCC17978.fasta --card_json db/card.json --phix db/phix.fa
+  --reference ABAU_ACICU --card_json db/card.json --phix db/phix.fa
+```
+
+**Let the pipeline pick the reference** (most frequent species → curated genome):
+
+```bash
+nextflow run main.nf -profile conda \
+  --reads 'reads/*_R{1,2}.fastq.gz' --kraken_db db/k2_standard_08gb \
+  --reference auto --card_json db/card.json
 ```
 
 **Existing assemblies.** Typed with Kaptive explicitly, because there is no Bracken label:
@@ -473,7 +553,10 @@ Options are given as `--name value` on the command line.
 ### Comparative genomics and typing
 | Option | Default | Description |
 |---|---|---|
-| `--reference` | – | Reference genome (FastANI, Snippy, QUAST). |
+| `--reference` | – | Reference for FastANI, Snippy and QUAST: a FASTA path, a curated key (e.g. `KPNE_HS11286`), or `auto`. |
+| `--reference_list` | `assets/reference_genomes.tsv` | Curated reference table (replace with your own, same columns). |
+| `--reference_cache` | `./reference_cache` | Where downloaded references are stored and reused. |
+| `--list_references` | `false` | Print the curated table and exit. |
 | `--card_json` | – | CARD `card.json` (RGI). |
 | `--kaptive` | `auto` | `auto`, `off`, or a comma list of `ab_k,ab_o,kpsc_k,kpsc_o` (see [§3.2](#32-kaptive-works-for-two-organisms-only)). |
 | `--skip_pangenome` | `false` | Do not run Roary. |
@@ -502,7 +585,8 @@ results/
 │   (02_fastp/         S_fastp.{html,json}                 with --trimmer fastp)
 ├── 03_kraken2/        S.kraken2.report
 ├── 04_bracken/        S.bracken, S_bracken.report
-├── 05_qc_gates/       species_check.tsv, assembly_qc.tsv  ← start here
+├── 05_qc_gates/       species_check.tsv, assembly_qc.tsv,  ← start here
+│                      reference_suggestion.tsv
 ├── 06_assembly/       S_contigs.fasta
 ├── 07_fastani/        S.ani.txt
 ├── 08_prokka/S/       S.gff  S.gbk  S.faa  S.ffn  S.fna  S.tsv  S.txt …
@@ -517,6 +601,8 @@ results/
 ├── 14_kaptive/        kaptive_ab_k.tsv, kaptive_ab_o.tsv, kaptive_kpsc_k.tsv, kaptive_kpsc_o.tsv
 │   └── per_sample/    S_<db>.tsv
 └── pipeline_info/     report.html, timeline.html, trace.txt, dag.html
+
+reference_cache/<KEY>/ <KEY>.fasta, <KEY>.info.tsv      curated references (outside results/, reused)
 ```
 
 The `14_kaptive/` summary tables exist only for databases that were actually used.
@@ -574,6 +660,7 @@ These versions are pinned in `nextflow.config` (Bioconda).
 | Kaptive | 3.1.0 | K / O(C) locus typing |
 | QUAST | 5.2.0 | assembly QC |
 | MultiQC | 1.25 | report |
+| NCBI Datasets CLI | latest (conda-forge, unpinned) | reference download only |
 
 For publications, also report the CARD version (shown by `rgi database --version --local`) and the Kraken2 database name and date.
 
@@ -600,7 +687,10 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 | `14_kaptive` empty or missing | No sample was *A. baumannii* or KpSC, which is expected for other species. With `--assemblies`, add `--species` or `--kaptive ab_k,ab_o`. |
 | Kaptive: `none / Untypeable` | Wrong species, or the locus is fragmented in the assembly. |
 | `Pangenome skipped` | Fewer than 2 genomes passed both gates. |
-| No FastANI/Snippy/RGI output | `--reference` / `--card_json` was not given. |
+| No FastANI/Snippy/RGI output | `--reference` / `--card_json` was not given, or `--reference auto` found no curated reference (see the warning and `reference_suggestion.tsv`). |
+| `FETCH_REFERENCE` fails to download | The machine has no internet access, or NCBI is unreachable. Download the genome elsewhere and pass it as a file. |
+| `FETCH_REFERENCE`: "is '…', expected '…'" | The accession in the table does not belong to that species. Correct the row in `reference_genomes.tsv` (or report it). |
+| Snippy skipped some samples | They are a different species from the curated reference (listed in the log). This is intended. |
 | `--phix null` still runs PhiX removal | Leave the option out entirely instead. |
 | Conda environment build hangs | Install mamba. Delete `work/conda/` and retry. |
 
@@ -688,6 +778,8 @@ Please cite the pipeline (see `CITATION.cff`; the Zenodo DOI will be added at re
 31. Gurevich A, Saveliev V, Vyahhi N, Tesler G. QUAST: quality assessment tool for genome assemblies. *Bioinformatics.* 2013;29(8):1072–1075. doi:10.1093/bioinformatics/btt086
 32. Ewels P, Magnusson M, Lundin S, Käller M. MultiQC: summarize analysis results for multiple tools and samples in a single report. *Bioinformatics.* 2016;32(19):3047–3048. doi:10.1093/bioinformatics/btw354
 33. Alquait AA, …, Algarni AT, *et al.* Phenotypic, PCR, and whole-genome sequencing characterization of carbapenem-resistant *Acinetobacter baumannii* in Makkah and Riyadh, Saudi Arabia: AST discordance and local genomic micro-clusters. *Front Microbiol.* 2026;17:1845444.
+34. World Health Organization. *WHO Bacterial Priority Pathogens List, 2024: bacterial pathogens of public health importance to guide research, development and strategies to prevent and control antimicrobial resistance.* Geneva: WHO; 2024. https://www.who.int/publications/i/item/9789240093461
+35. O'Leary NA, Cox E, Holmes JB, *et al.* Exploring and retrieving sequence and metadata for species across the tree of life with NCBI Datasets. *Sci Data.* 2024;11:732. doi:10.1038/s41597-024-03571-y
 
 ---
 
