@@ -4,12 +4,13 @@ nextflow.enable.dsl = 2
 // ─────────────────────────────────────────────────────────────────────────────
 //  bacterial-wgs-nf
 //  Illumina paired-end bacterial isolate WGS:
-//    PhiX removal → fastp → Kraken2/Bracken → species gate → SKESA →
+//    PhiX removal → Trim Galore (or fastp) → Kraken2/Bracken → species gate → SKESA →
 //    assembly QC gate → FastANI · Prokka · RGI · Snippy → Roary · snippy-core
 //    · QUAST · MultiQC
 // ─────────────────────────────────────────────────────────────────────────────
 
 include { REMOVE_PHIX           } from './modules/remove_phix'
+include { TRIM_GALORE           } from './modules/trim_galore'
 include { FASTP                 } from './modules/fastp'
 include { KRAKEN2               } from './modules/kraken2'
 include { BRACKEN               } from './modules/bracken'
@@ -38,6 +39,8 @@ def validate_params() {
         error "ERROR: provide --reads \"dir/*_R{1,2}*.fastq.gz\" or --assemblies \"dir/*.fasta\""
     if (params.reads && !params.kraken_db && !params.skip_species_check)
         error "ERROR: --kraken_db is required (or use --skip_species_check)"
+    if (!(params.trimmer in ['trim_galore', 'fastp']))
+        error "ERROR: --trimmer must be 'trim_galore' or 'fastp' (got '${params.trimmer}')"
     if (workflow.stubRun) return
     check_path('kraken_db',  params.kraken_db,  'dir')
     check_path('phix',       params.phix,       'file')
@@ -58,6 +61,7 @@ workflow {
     Input           : ${params.reads ?: params.assemblies + ' (assemblies)'}
     Output dir      : ${params.outdir}
     PhiX removal    : ${params.reads && params.phix ? params.phix : 'off'}
+    Read trimming   : ${params.trimmer}
     Species gate    : ${params.skip_species_check ? 'off' : "${params.target_species ?: 'top species'} ≥ ${params.min_species_fraction}"}
     Contig gate     : ≤ ${params.max_contigs} contigs
     Reference       : ${params.reference ?: 'none (FastANI and Snippy skipped)'}
@@ -86,15 +90,22 @@ workflow {
         }
 
         // 2. Trimming
-        FASTP(ch_reads)
-        ch_mqc = ch_mqc.mix(FASTP.out.json)
+        if (params.trimmer == 'fastp') {
+            FASTP(ch_reads)
+            ch_trimmed = FASTP.out.reads
+            ch_mqc = ch_mqc.mix(FASTP.out.json)
+        } else {
+            TRIM_GALORE(ch_reads)
+            ch_trimmed = TRIM_GALORE.out.reads
+            ch_mqc = ch_mqc.mix(TRIM_GALORE.out.report.flatten(), TRIM_GALORE.out.fastqc.flatten())
+        }
 
         // 3–4. Taxonomy + species gate
         if (params.skip_species_check) {
-            ch_for_assembly = FASTP.out.reads
+            ch_for_assembly = ch_trimmed
         } else {
             ch_db = Channel.value(file(params.kraken_db))
-            KRAKEN2(FASTP.out.reads, ch_db)
+            KRAKEN2(ch_trimmed, ch_db)
             BRACKEN(KRAKEN2.out.report, ch_db)
             SPECIES_CHECK(BRACKEN.out.abundance)
             ch_sp_rows = SPECIES_CHECK.out.row
@@ -104,7 +115,7 @@ workflow {
                 .filter { id, status -> status != 'PASS' }
                 .subscribe { id, status -> log.warn "Species gate: ${id} FAILED — not assembled (see 05_qc_gates/species_check.tsv)" }
 
-            ch_for_assembly = FASTP.out.reads
+            ch_for_assembly = ch_trimmed
                 .join(SPECIES_CHECK.out.status)
                 .filter { id, r1, r2, status -> status == 'PASS' }
                 .map    { id, r1, r2, status -> tuple(id, r1, r2) }
