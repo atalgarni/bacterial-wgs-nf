@@ -1,0 +1,9 @@
+work/
+.nextflow*
+results/
+*.fastq.gz
+*.fq.gz
+*.bam
+*.bai
+!test_data/*.fastq.gz
+.DS_Store
