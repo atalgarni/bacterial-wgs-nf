@@ -14,7 +14,7 @@ license: MIT
 keywords:
   - "whole-genome sequencing"
   - "bacterial genomics"
-  - "Acinetobacter baumannii"
+  - "Kaptive"
   - "Nextflow"
   - "pangenome"
   - "antimicrobial resistance"

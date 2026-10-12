@@ -6,7 +6,9 @@ nextflow.enable.dsl = 2
 //  Illumina paired-end bacterial isolate WGS:
 //    PhiX removal → Trim Galore (or fastp) → Kraken2/Bracken → species gate → SKESA →
 //    assembly QC gate → FastANI · Prokka · RGI · Snippy → Roary · snippy-core
-//    · QUAST · MultiQC
+//    · Kaptive (A. baumannii / K. pneumoniae SC only) · QUAST · MultiQC
+//  Species-agnostic: the organism is taken per sample from Bracken (or
+//  --species); only Kaptive is restricted to the species it has databases for.
 // ─────────────────────────────────────────────────────────────────────────────
 
 include { REMOVE_PHIX           } from './modules/remove_phix'
@@ -23,7 +25,22 @@ include { ROARY                 } from './modules/roary'
 include { SNIPPY; SNIPPY_CORE   } from './modules/snippy'
 include { RGI_LOAD; RGI_MAIN    } from './modules/rgi'
 include { QUAST                 } from './modules/quast'
+include { KAPTIVE               } from './modules/kaptive'
 include { QC_SUMMARY; MULTIQC   } from './modules/summary'
+
+// ── Kaptive: the only species-restricted step ────────────────────────────────
+
+KAPTIVE_DBS = ['ab_k', 'ab_o', 'kpsc_k', 'kpsc_o']
+
+KPSC = ['klebsiella pneumoniae', 'klebsiella quasipneumoniae', 'klebsiella variicola',
+        'klebsiella quasivariicola', 'klebsiella africana']
+
+def kaptive_dbs_for(String organism) {
+    def s = (organism ?: '').toLowerCase().trim()
+    if (s == 'acinetobacter baumannii') return ['ab_k', 'ab_o']
+    if (KPSC.any { s == it || s.startsWith(it + ' ') }) return ['kpsc_k', 'kpsc_o']
+    return []
+}
 
 // ── Parameter validation ──────────────────────────────────────────────────────
 
@@ -41,6 +58,10 @@ def validate_params() {
         error "ERROR: --kraken_db is required (or use --skip_species_check)"
     if (!(params.trimmer in ['trim_galore', 'fastp']))
         error "ERROR: --trimmer must be 'trim_galore' or 'fastp' (got '${params.trimmer}')"
+    if (!(params.kaptive in ['auto', 'off'])) {
+        def bad = params.kaptive.toString().tokenize(',')*.trim().findAll { !(it in KAPTIVE_DBS) }
+        if (bad) error "ERROR: --kaptive must be 'auto', 'off' or a comma-separated list of ${KAPTIVE_DBS.join(', ')} (got: ${bad.join(', ')})"
+    }
     if (workflow.stubRun) return
     check_path('kraken_db',  params.kraken_db,  'dir')
     check_path('phix',       params.phix,       'file')
@@ -62,11 +83,13 @@ workflow {
     Output dir      : ${params.outdir}
     PhiX removal    : ${params.reads && params.phix ? params.phix : 'off'}
     Read trimming   : ${params.trimmer}
-    Species gate    : ${params.skip_species_check ? 'off' : "${params.target_species ?: 'top species'} ≥ ${params.min_species_fraction}"}
+    Species gate    : ${params.skip_species_check ? 'off' : "${params.target_species ?: 'any species (purity only)'} ≥ ${params.min_species_fraction}"}
+    Species label   : ${params.reads && !params.skip_species_check ? 'per sample from Bracken' : (params.species ?: 'unknown (set --species)')}
     Contig gate     : ≤ ${params.max_contigs} contigs
     Reference       : ${params.reference ?: 'none (FastANI and Snippy skipped)'}
     CARD JSON       : ${params.card_json ?: 'none (RGI skipped)'}
     Pangenome       : ${params.skip_pangenome ? 'off' : 'Roary'}
+    Kaptive         : ${params.kaptive == 'auto' ? 'auto (A. baumannii / K. pneumoniae SC samples only)' : params.kaptive}
     Profile         : ${workflow.profile}
     ══════════════════════════════════════════════════════════
     """.stripIndent()
@@ -76,6 +99,7 @@ workflow {
     ch_qc_rows = Channel.empty()
     ch_sp_rows = Channel.empty()
     ch_mqc     = Channel.empty()
+    ch_species = null
 
     if (params.reads) {
 
@@ -109,14 +133,15 @@ workflow {
             BRACKEN(KRAKEN2.out.report, ch_db)
             SPECIES_CHECK(BRACKEN.out.abundance)
             ch_sp_rows = SPECIES_CHECK.out.row
+            ch_species = SPECIES_CHECK.out.status.map { id, status, top -> tuple(id, top ?: 'unknown') }
             ch_mqc = ch_mqc.mix(KRAKEN2.out.report.map { it[1] }, BRACKEN.out.report)
 
             SPECIES_CHECK.out.status
-                .filter { id, status -> status != 'PASS' }
-                .subscribe { id, status -> log.warn "Species gate: ${id} FAILED — not assembled (see 05_qc_gates/species_check.tsv)" }
+                .filter { id, status, top -> status != 'PASS' }
+                .subscribe { id, status, top -> log.warn "Species gate: ${id} FAILED — not assembled (see 05_qc_gates/species_check.tsv)" }
 
             ch_for_assembly = ch_trimmed
-                .join(SPECIES_CHECK.out.status)
+                .join(SPECIES_CHECK.out.status.map { id, status, top -> tuple(id, status) })
                 .filter { id, r1, r2, status -> status == 'PASS' }
                 .map    { id, r1, r2, status -> tuple(id, r1, r2) }
         }
@@ -145,6 +170,11 @@ workflow {
         .filter { id, contigs, status -> status == 'PASS' }
         .map    { id, contigs, status -> tuple(id, contigs) }
 
+    // Species per sample: Bracken top species, else --species, else 'unknown'
+    if (ch_species == null)
+        ch_species = ch_contigs.map { id, contigs -> tuple(id, params.species ?: 'unknown') }
+    ch_pass_sp = ch_pass.join(ch_species)          // (id, contigs, organism)
+
     QC_SUMMARY(ch_sp_rows.collect().ifEmpty([no_file]), ch_qc_rows.collect())
 
     // 7. Per-genome analyses
@@ -157,12 +187,27 @@ workflow {
         SNIPPY_CORE(ch_snippy_dirs, ch_ref)
     }
 
-    PROKKA(ch_pass, params.prokka_proteins ? file(params.prokka_proteins) : no_file)
+    PROKKA(ch_pass_sp, params.prokka_proteins ? file(params.prokka_proteins) : no_file)
     ch_mqc = ch_mqc.mix(PROKKA.out.dir.map { it[1] })
 
     if (params.card_json) {
         RGI_LOAD(Channel.value(file(params.card_json)))
         RGI_MAIN(ch_pass, RGI_LOAD.out.db)
+    }
+
+    // Kaptive — only for species with a Kaptive database
+    if (params.kaptive != 'off') {
+        ch_kaptive_in = ch_pass_sp.flatMap { id, contigs, organism ->
+            def dbs = params.kaptive == 'auto'
+                ? kaptive_dbs_for(organism)
+                : params.kaptive.toString().tokenize(',')*.trim()
+            if (!dbs)
+                log.info "Kaptive: ${id} skipped — '${organism}' is not A. baumannii or K. pneumoniae species complex"
+            dbs.collect { db -> tuple(id, contigs, db) }
+        }
+        KAPTIVE(ch_kaptive_in)
+        KAPTIVE.out.tsv
+            .collectFile(keepHeader: true, sort: true, storeDir: "${params.outdir}/14_kaptive") { db, f -> ["kaptive_${db}.tsv", f] }
     }
 
     // 8. Pangenome (>= 2 genomes)
