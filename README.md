@@ -537,6 +537,7 @@ Options are given as `--name value` on the command line.
 | Option | Default | Description |
 |---|---|---|
 | `--kraken_db` | – | Kraken2/Bracken database folder. |
+| `--kraken_memory_mapping` | `false` | Read the Kraken2 database from disk instead of loading it into RAM. Use it when the database is larger than the machine's memory (slower, but it runs). Kraken2 runs one sample at a time because each run loads the whole database. |
 | `--read_len` | `100` | Bracken read length. Must match a `kmer_distrib` file in the database. |
 | `--bracken_level` | `S` | Taxonomic level for Bracken and the gate (`S` species, `G` genus). |
 | `--min_species_fraction` | `0.93` | Minimum fraction of reads for the top taxon. |

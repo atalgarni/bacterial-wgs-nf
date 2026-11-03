@@ -17,8 +17,9 @@ process KRAKEN2 {
     tuple val(sample_id), path("${sample_id}.kraken2.report"), emit: report
 
     script:
+    def mm = params.kraken_memory_mapping ? ' --memory-mapping' : ''
     """
-    kraken2 --db ${db} --threads ${task.cpus} \\
+    kraken2 --db ${db} --threads ${task.cpus}${mm} \\
         --report ${sample_id}.kraken2.report \\
         --paired ${r1} ${r2} > /dev/null
     """
