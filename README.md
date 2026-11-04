@@ -660,7 +660,7 @@ These versions are pinned in `nextflow.config` (Bioconda).
 | Trim Galore | 0.6.10 | trimming (default) |
 | fastp | 0.23.4 | trimming (`--trimmer fastp`) |
 | Kraken2 | 2.1.3 | classification |
-| Bracken | 2.9 | abundance |
+| Bracken | 2.9 (2.6.1 on macOS) | abundance |
 | SKESA | 2.5.1 | assembly |
 | FastANI | 1.34 | ANI |
 | Prokka | 1.14.6 | annotation |
