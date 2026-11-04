@@ -794,7 +794,10 @@ Please cite the pipeline **and** the tools you used from [§19](#19-references).
 | DOI | Resolves to |
 |---|---|
 | [10.5281/zenodo.23316008](https://doi.org/10.5281/zenodo.23316008) | All versions (always the latest); use this to cite the pipeline |
-| [10.5281/zenodo.23316009](https://doi.org/10.5281/zenodo.23316009) | v1.0.1 specifically. Each release has its own version DOI on the Zenodo page; cite the one you ran. |
+| [10.5281/zenodo.23940008](https://doi.org/10.5281/zenodo.23940008) | v1.0.2 specifically (first end-to-end run on real isolates; macOS fixes) |
+| [10.5281/zenodo.23316009](https://doi.org/10.5281/zenodo.23316009) | v1.0.1 specifically |
+
+Each release has its own version DOI on the Zenodo page; cite the one you ran.
 
 ---
 
