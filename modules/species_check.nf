@@ -35,8 +35,8 @@ process SPECIES_CHECK {
             ok_name  = (target == "" || tolower(top) == tolower(target))
             status   = (ok_frac && ok_name) ? "PASS" : "FAIL"
             reason   = status == "PASS" ? "-" : (!ok_name ? "top species is not the target" : "top species below threshold")
-            print s, top, sprintf("%.4f", best), (target == "" ? "-" : target), (target == "" ? "-" : sprintf("%.4f", tf + 0)), status, reason > s "_species_check.tsv"
-        }' ${bracken}
+            print s, top, sprintf("%.4f", best), (target == "" ? "-" : target), (target == "" ? "-" : sprintf("%.4f", tf + 0)), status, reason
+        }' ${bracken} > ${sample_id}_species_check.tsv
     STATUS=\$(cut -f6 ${sample_id}_species_check.tsv)
     TOP=\$(cut -f2 ${sample_id}_species_check.tsv)
     """

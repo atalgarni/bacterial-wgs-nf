@@ -17,9 +17,10 @@ process ASSEMBLY_QC {
 
     script:
     """
-    awk '/^>/ { if (s != "") print length(s) "\\t" gsub(/[GCgc]/, "", s); s = ""; next }
+    awk 'function out() { if (s != "") { n = length(s); g = gsub(/[GCgc]/, "", s); print n "\\t" g } }
+         /^>/ { out(); s = ""; next }
          { s = s \$0 }
-         END { if (s != "") print length(s) "\\t" gsub(/[GCgc]/, "", s) }' ${contigs} \\
+         END { out() }' ${contigs} \\
       | sort -k1,1nr \\
       | awk -F'\\t' -v OFS='\\t' -v s="${sample_id}" -v max="${params.max_contigs}" '
             { l[NR] = \$1; t += \$1; gc += \$2 }

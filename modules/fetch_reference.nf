@@ -44,13 +44,13 @@ process FETCH_REFERENCE {
         awk 'NR==FNR { keep[\$1] = 1; next }
              /^>/    { id = substr(\$1, 2); p = (id in keep) }
              p' chrom.ids \$FNA > ${key}.fasta
-        CONTENT="chromosome(s): \$(paste -sd, chrom.ids)"
+        CONTENT="chromosome(s): \$(paste -s -d, chrom.ids)"
     else
         cp \$FNA ${key}.fasta
         CONTENT="all sequences (no chromosome roles in report)"
     fi
 
-    LEN=\$(grep -v '^>' ${key}.fasta | tr -d '\\n' | wc -c)
+    LEN=\$(grep -v '^>' ${key}.fasta | tr -d '\\n' | wc -c | tr -d ' ')
     [ "\$LEN" -gt 100000 ] || { echo "ERROR: reference ${key} is only \$LEN bp" >&2; exit 1; }
 
     printf 'key\\tspecies\\tstrain\\taccession\\torganism_in_ncbi\\tcontent\\tlength_bp\\n' > ${key}.info.tsv
