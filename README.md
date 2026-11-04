@@ -783,6 +783,8 @@ v1.0.0 makes them a single pipeline. It also makes the defaults species-agnostic
 
 Because of these fixes, results can differ slightly from the original runs.
 
+**Use of AI tools.** Development was assisted by AI coding tools. The design, validation and responsibility for the code are the author's.
+
 ---
 
 ## 18. Citation
