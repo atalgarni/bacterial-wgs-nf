@@ -427,7 +427,7 @@ An assembly **passes** when it has ≤ `--max_contigs` (default 200) contigs of 
    ```bash
    mamba create -n nextflow -c bioconda -c conda-forge nextflow openjdk=17
    ```
-2. **The pipeline:** `git clone https://github.com/atalgarni/bacterial-wgs-nf.git`, or run it directly with `nextflow run atalgarni/bacterial-wgs-nf -r v1.0.1`.
+2. **The pipeline:** `git clone https://github.com/atalgarni/bacterial-wgs-nf.git`, or run it directly with `nextflow run atalgarni/bacterial-wgs-nf -r v1.0.2`.
 3. **The tools:** nothing to install by hand.
    * With `-profile conda`, Nextflow builds one Bioconda [2] environment per tool on first use, using mamba, and caches it under `work/conda/`. The first run therefore takes longer.
    * `-profile docker` uses Seqera Wave containers built from the same specs. *This profile is untested.*
@@ -708,14 +708,15 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 
 ## 16. Status and roadmap
 
-**v1.0.1** (identical code to v1.0.0; re-released for Zenodo archiving):
+**v1.0.2** (2026-11-04): first end-to-end run on real isolates; macOS fixes.
 
-* All branches are verified with stub runs.
-* Both QC gates passed real-mode tests on synthetic data.
-* The Trim Galore and Kaptive commands passed real-mode tests on the test data.
-* A full end-to-end run on real isolates in this consolidated form is pending.
+* **Validated end to end** with `-profile conda` on macOS (Intel, 64 GB RAM) using two carbapenem-resistant *A. baumannii* isolates from BioProject PRJNA1402053 (SRR36802031, SRR36802044). Every step completed, including `--reference auto` (`FETCH_REFERENCE` downloaded ACICU, GCF_000018445.1, from NCBI).
+* Kraken2 now runs one sample at a time, because each run loads the whole database into RAM. New `--kraken_memory_mapping` option for databases larger than the machine's memory.
+* macOS: Bracken 2.6.1 (2.9 is not built for macOS on Bioconda); a SKESA 2.5.1 build without AVX2 (the newest build crashed with "Illegal instruction" on older Intel Macs); BSD-awk and BSD `wc`/`paste` fixes in `SPECIES_CHECK`, `ASSEMBLY_QC` and `FETCH_REFERENCE`; RGI and QUAST forced to the `fork` multiprocessing start method (they crashed under the macOS `spawn` default; ablab/quast#175).
+* Results on Linux are unchanged: the same tool versions and commands are used there.
 * The Docker profile is untested.
-* All curated accessions were checked against NCBI (organism name and assembly level: complete). The `FETCH_REFERENCE` download itself has not yet been run end-to-end on a real dataset.
+
+**v1.0.1** (identical code to v1.0.0; re-released for Zenodo archiving): all branches verified with stub runs; QC gates, Trim Galore and Kaptive tested in real mode on test data.
 
 **Planned for v1.1:**
 
@@ -756,7 +757,7 @@ Please cite the pipeline **and** the tools you used from [§19](#19-references).
 | DOI | Resolves to |
 |---|---|
 | [10.5281/zenodo.23316008](https://doi.org/10.5281/zenodo.23316008) | All versions (always the latest); use this to cite the pipeline |
-| [10.5281/zenodo.23316009](https://doi.org/10.5281/zenodo.23316009) | v1.0.1 specifically; use this to cite the exact version you ran |
+| [10.5281/zenodo.23316009](https://doi.org/10.5281/zenodo.23316009) | v1.0.1 specifically. Each release has its own version DOI on the Zenodo page; cite the one you ran. |
 
 ---
 
