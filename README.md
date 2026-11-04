@@ -18,6 +18,8 @@ It then compares the genomes that passed QC with each other, building a pangenom
 
 The pipeline is **species-agnostic**: nothing in it is tied to a particular genus. The organism is identified per sample from the reads and is used to label the annotation. The one exception is **Kaptive capsule/O-antigen typing**. Kaptive has databases for only two organisms, so it runs only on those (see [§3](#3-species-handling-and-the-kaptive-exception)).
 
+It runs on a **personal computer** as well as on a server or cluster. A full run on carbapenem-resistant *A. baumannii* isolates took about 35–45 min per isolate on a desktop Mac, with no HPC and no containers (see [§12.1](#121-running-on-a-personal-computer)).
+
 ---
 
 ## Contents
@@ -647,6 +649,41 @@ These are typical per-sample figures for a genome of about 5 Mb at about 100× c
 
 The defaults fit a 16 GB workstation. For a larger Kraken2 index (e.g. PlusPF, about 70 GB), raise `--max_memory` and the `KRAKEN2` memory in `nextflow.config`.
 
+### 12.1 Running on a personal computer
+
+Many labs that sequence bacterial isolates, such as hospital and public-health laboratories, have no HPC cluster or bioinformatics staff. Most analysis pipelines are built and tested on Linux servers, and the same tools often fail on a desktop computer in ways that are hard for a non-specialist to diagnose. This pipeline is tested to run on a personal computer with `-profile conda`, without HPC, containers or manual tool installation.
+
+**Tested end to end (v1.0.2):** macOS on an Intel Mac Pro without AVX2, 64 GB RAM, the 8 GB Kraken2 database (Standard-8) and `--reference auto`. The data were two carbapenem-resistant *Acinetobacter baumannii* isolates (WHO Bacterial Priority Pathogens List 2024, critical group) from BioProject PRJNA1402053, NovaSeq 6000 reads of ~90 bp, 15–18 million read pairs per isolate (roughly 700–800× coverage; at a more typical 100× the read-processing steps are faster). All 30 tasks completed.
+
+| Step (per isolate) | Time on this machine |
+|---|---|
+| Trim Galore | 9–10 min |
+| Kraken2 + Bracken (Standard-8) | ~2 min |
+| SKESA | 13–26 min |
+| Prokka | 7 min |
+| RGI, Snippy, Kaptive, FastANI | < 1 min each |
+| **Total** | **~35–45 min per isolate** |
+
+**Platform problems the pipeline handles for you.** Each of these stopped a real run on macOS before it was fixed:
+
+| Problem | What a user sees | How the pipeline handles it |
+|---|---|---|
+| Bracken 2.9 is not built for macOS on Bioconda | Conda: "bracken 2.9 does not exist" | Uses Bracken 2.6.1 on macOS (same report format) |
+| The newest macOS build of SKESA needs AVX2 | `Illegal instruction`, exit 132 | Pins a build of the same version (2.5.1) without AVX2 |
+| macOS ships BSD awk, `wc` and `paste` | awk syntax error in the species gate | Shell code written to work with both GNU and BSD tools |
+| Python 3.8+ on macOS starts worker processes with `spawn` | RGI: "bootstrapping phase" error; QUAST: `'>=' not supported … 'NoneType'` | Forces the `fork` start method (the Linux default) |
+| Several Kraken2 runs at once each load the whole database | Machine swaps and the run stalls | Kraken2 runs one sample at a time; `--kraken_memory_mapping` for databases larger than RAM |
+
+On Linux the same tool versions and commands are used, so results do not depend on the platform.
+
+**Practical notes**
+
+* Use the Standard-8 Kraken2 database. A full Standard database (~70 GB) does not fit in the RAM of most personal computers.
+* Keep the run folder out of folders synced to the cloud (on a Mac, outside `Desktop`/`Documents` when iCloud Drive syncs them).
+* The first run needs internet access, to build the conda environments and download the reference genome. Later runs reuse them.
+
+**Not yet tested:** Apple Silicon (M-series) Macs, Windows (through WSL), and machines with less than 64 GB of RAM. The memory figures above suggest that 16 GB is enough with Standard-8; reports from such machines are welcome.
+
 ---
 
 ## 13. Software versions
@@ -708,7 +745,7 @@ This uses the tiny dataset in `test_data/` and runs every branch of the workflow
 
 ## 16. Status and roadmap
 
-**v1.0.2** (2026-11-04): first end-to-end run on real isolates; macOS fixes.
+**v1.0.2** (2026-11-04): first end-to-end run on real isolates; macOS fixes; tested on a personal computer ([§12.1](#121-running-on-a-personal-computer)).
 
 * **Validated end to end** with `-profile conda` on macOS (Intel, 64 GB RAM) using two carbapenem-resistant *A. baumannii* isolates from BioProject PRJNA1402053 (SRR36802031, SRR36802044). Every step completed, including `--reference auto` (`FETCH_REFERENCE` downloaded ACICU, GCF_000018445.1, from NCBI).
 * Kraken2 now runs one sample at a time, because each run loads the whole database into RAM. New `--kraken_memory_mapping` option for databases larger than the machine's memory.
