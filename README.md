@@ -844,3 +844,5 @@ Each release has its own version DOI on the Zenodo page; cite the one you ran.
 ---
 
 **Author:** Abdulmalek T. Algarni ([ORCID 0000-0002-2872-3724](https://orcid.org/0000-0002-2872-3724)). Released under the MIT License.
+
+**Acknowledgements:** Ahmad M. Aldossary, Musaad A. Altammami and Hadi M. Alasmari (King Abdulaziz City for Science and Technology) contributed to the project.

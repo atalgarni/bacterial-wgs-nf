@@ -24,5 +24,22 @@
       "affiliation": "King Abdulaziz City for Science and Technology (KACST)",
       "orcid": "0000-0002-2872-3724"
     }
+  ],
+  "contributors": [
+    {
+      "name": "Aldossary, Ahmad M.",
+      "affiliation": "King Abdulaziz City for Science and Technology (KACST)",
+      "type": "ProjectMember"
+    },
+    {
+      "name": "Altammami, Musaad A.",
+      "affiliation": "King Abdulaziz City for Science and Technology (KACST)",
+      "type": "ProjectMember"
+    },
+    {
+      "name": "Alasmari, Hadi M.",
+      "affiliation": "King Abdulaziz City for Science and Technology (KACST)",
+      "type": "ProjectMember"
+    }
   ]
 }
