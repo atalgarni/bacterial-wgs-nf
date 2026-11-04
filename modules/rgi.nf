@@ -41,9 +41,17 @@ process RGI_MAIN {
 
     script:
     """
-    rgi main --input_sequence ${contigs} --output_file ${sample_id} \\
+    # RGI's filter step uses multiprocessing without a __main__ guard. Python 3.8+ on
+    # macOS defaults to the 'spawn' start method, which makes it crash; force 'fork'
+    # (the Linux default) by starting RGI through a small wrapper.
+    python - main --input_sequence ${contigs} --output_file ${sample_id} \\
         --input_type contig --alignment_tool DIAMOND --data wgs \\
-        --local --clean --num_threads ${task.cpus}
+        --local --clean --num_threads ${task.cpus} <<'PY'
+import multiprocessing
+multiprocessing.set_start_method("fork")
+from app.MainBase import MainBase
+MainBase()
+PY
     """
 
     stub:
